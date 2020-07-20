@@ -20,7 +20,7 @@ Pod::Spec.new do |spec|
 
   spec.subspec 'GNGcdTimer' do |ss|
      ss.ios.deployment_target = '8.0'
-     ss.source_files = 'GNGcdTimer/GN*.h','GNGcdTimer/GN*.m'
+     ss.source_files = 'GN*.h','GN*.m'
   end
 
 end
