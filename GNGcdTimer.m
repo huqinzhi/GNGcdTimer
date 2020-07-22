@@ -83,13 +83,14 @@ static id _instance;
     NSInteger endtime;
     BOOL forEver;
     if (count > 0) {
-        endtime= @(interval * count).integerValue;
+        endtime= @(interval * count).doubleValue;
         forEver = false;
     } else {
         endtime = INT_MAX;
         forEver = true;
     }
     //计算结束时间
+    NSDate *date = [NSDate date];
     NSTimeInterval endTimeInterval = [[NSDate date] timeIntervalSince1970] + endtime;
     NSDate *endDate = [NSDate dateWithTimeIntervalSince1970:endTimeInterval];
     
@@ -149,7 +150,9 @@ static id _instance;
 -(void)continueTimerFromBackGroundWithKey:(NSString *)key
                                  callBack:(GNGcdTimerCallBack)callback
                                  lastDate:(NSDate *)lastDate{
-    NSDate *endTime = [self endDateWithKey:key];
+    NSDate *endTime = [self.endDateAccessor readWithGCD:^id _Nonnull{
+        return self.endDates[key];
+    }];
     NSNumber *foreverNumber = [_keyForeverAccessor readWithGCD:^id _Nonnull{
         return self.keyForever[key];
     }];
@@ -197,6 +200,7 @@ static id _instance;
     }];
     NSTimeInterval endTimeInterval = [endTime timeIntervalSince1970];
     if (!forever) {
+        NSLog(@"%@ --- %@",@([[NSDate date] timeIntervalSince1970]), @(endTimeInterval));
         if ([self isExpiredWithEndTime:endTimeInterval]) {
             [self handleCallbackWithKey:key circleCount:1 isFinished:true];
             return nil;
@@ -207,10 +211,10 @@ static id _instance;
     dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
     dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, interval * NSEC_PER_SEC, 0);
-    __block NSInteger countDown = endTimeInterval - [[NSDate date] timeIntervalSince1970] + 1;
+    __block double countDown = endTimeInterval - [[NSDate date] timeIntervalSince1970] + 1;
     typeof(self) __weak weakself = self;
     dispatch_source_set_event_handler(timer, ^{
-        countDown--;
+        countDown -= interval;
         BOOL isFinished = countDown <= 0;
         dispatch_async(dispatch_get_main_queue(), ^{
             if (![weakself.keyIsContinue[key] isEqualToNumber:@(1)]) {
@@ -340,7 +344,6 @@ static id _instance;
             continue;
         }
         NSDate *lastDate = [[NSUserDefaults standardUserDefaults]objectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]];
-        NSLog(@"enter foreground %@",lastDate);
         if (lastDate == nil) {
             return;
         }
@@ -348,7 +351,7 @@ static id _instance;
                return self.timers[key];
            }];
         if (timer != nil){
-            //恢复定时器，并移除
+            //恢复定时器
             [_timerAccessor writeWithGCD:^{
                 dispatch_resume(self.timers[key]);
                 dispatch_source_cancel(self.timers[key]);
@@ -369,18 +372,21 @@ static id _instance;
         dispatch_source_t timer = [_timerAccessor readWithGCD:^id _Nonnull{
             return self.timers[key];
         }];
-        [_timerAccessor writeWithGCD:^{
-            dispatch_suspend(self.timers[key]);
-        }];
+        if (timer != nil) {
+            [_timerAccessor writeWithGCD:^{
+                dispatch_suspend(self.timers[key]);
+            }];
+        }
     }
 
 }
 
 -(double)offlineContinueWithKey:(NSString *)key{
     NSDate *lastDate = [[NSUserDefaults standardUserDefaults]objectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]];
-    NSLog(@"enter background lastDate : %@",lastDate);
-
-    if (lastDate == nil){
+    BOOL forever = [[_keyForeverAccessor readWithGCD:^id _Nonnull{
+        return self.keyForever[key];
+    }]boolValue];
+    if (lastDate == nil || !forever){
         return 0;
     }
     NSNumber *intervalNum = [_keyIntervalAccessor readWithGCD:^id _Nonnull{
@@ -407,16 +413,9 @@ static id _instance;
     return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:kGNGcdTimerForeverFileName];
 }
 
--(NSDate *)endDateWithKey:(NSString *)key{
-    NSDate *endTime = [_endDateAccessor readWithGCD:^id _Nonnull{
-        NSDate *date = self.endDates[key];
-        return date;
-    }];
-    return endTime;
-}
 
 - (BOOL)isExpiredWithEndTime:(NSTimeInterval)endTime {
-    return [NSDate date].timeIntervalSince1970 >= endTime;
+    return [[NSDate date] timeIntervalSince1970] >= endTime;
 }
 
 @end
