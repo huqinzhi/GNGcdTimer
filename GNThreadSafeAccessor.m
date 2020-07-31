@@ -14,7 +14,7 @@
 
 
 @implementation GNThreadSafeAccessor
-//串行同步队列
+//并发同步队列
 -(instancetype)init{
     self = [super init];
     if (self != nil) {

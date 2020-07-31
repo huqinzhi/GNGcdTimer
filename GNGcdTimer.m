@@ -12,8 +12,7 @@
 static NSString *const kGNGcdTimerIntervalFileName = @"gnInterval.gcdTimer.hqz.com";
 static NSString *const kGNGcdTimerForeverFileName = @"gnForever.gcdTimer.hqz.com";
 static NSString *const kGNGcdTimerLastDate = @"gnLastDate.gcdTimer.hqz.com";
-
-#define GcdTimerErrorDomain @"GNGcdErrorDomian"
+static NSString *const GcdTimerErrorDomain = @"GNGcdErrorDomian";
 
 @interface GNGcdTimer ()
 @property (nonatomic,strong) GNThreadSafeAccessor *timerAccessor;
@@ -27,7 +26,7 @@ static NSString *const kGNGcdTimerLastDate = @"gnLastDate.gcdTimer.hqz.com";
 @property (nonatomic,strong) GNThreadSafeAccessor *keyIntervalAccessor;
 @property (nonatomic,strong) NSMutableDictionary <NSString *, NSNumber *> *keyInterval; //记录间隔时间
 @property (nonatomic,strong) GNThreadSafeAccessor *keyStatusAccessor;
-@property (nonatomic,strong) NSMutableDictionary <NSString *, NSNumber *> *keyStatusStack; // 记录是否已暂停  确保suspend 和 resume 成对
+@property (nonatomic,strong) NSMutableDictionary <NSString *, NSNumber *> *keyStatusStack; // 记录是否已暂停 确保suspend 和 resume 成对
 @property (nonatomic,strong) NSMutableDictionary <NSString *, NSNumber *> *keyIsContinue; //记录是否是暂停后 重新resume定时器
 @end
 @implementation GNGcdTimer
@@ -90,7 +89,6 @@ static id _instance;
         forEver = true;
     }
     //计算结束时间
-    NSDate *date = [NSDate date];
     NSTimeInterval endTimeInterval = [[NSDate date] timeIntervalSince1970] + endtime;
     NSDate *endDate = [NSDate dateWithTimeIntervalSince1970:endTimeInterval];
     
@@ -167,8 +165,12 @@ static id _instance;
     NSInteger circleCount = intervalBack / interval;
 
     if (!forever) {
-        if (!endTime || [self isExpiredWithEndTime:[endTime timeIntervalSince1970]]) {
-            //to do :后台时间 循环次数
+        if (endTime == nil) {
+            return;
+        }
+        if ([self isExpiredWithEndTime:[endTime timeIntervalSince1970]]){
+            intervalBack = [endTime timeIntervalSinceDate:lastDate];
+            circleCount = intervalBack / interval;
             [self handleCallbackWithKey:key circleCount:circleCount isFinished:YES];
             return;
         }
@@ -200,7 +202,7 @@ static id _instance;
     }];
     NSTimeInterval endTimeInterval = [endTime timeIntervalSince1970];
     if (!forever) {
-        NSLog(@"%@ --- %@",@([[NSDate date] timeIntervalSince1970]), @(endTimeInterval));
+//        NSLog(@"%@ --- %@",@([[NSDate date] timeIntervalSince1970]), @(endTimeInterval));
         if ([self isExpiredWithEndTime:endTimeInterval]) {
             [self handleCallbackWithKey:key circleCount:1 isFinished:true];
             return nil;
