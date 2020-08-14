@@ -3,7 +3,7 @@ Pod::Spec.new do |spec|
   spec.version      = "1.0.2"
   spec.summary      = "A short description of GNGcdTimer SDK for iOS."
   spec.description  = <<-DESC
-            TopOn SDK for developer
+            QZ SDK for developer
                    DESC
   spec.homepage     = "https://github.com/huqinzhi/GNGcdTimer"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
