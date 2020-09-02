@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "GNGcdTimer"
-  spec.version      = "1.0.3"
+  spec.version      = "1.0.4"
   spec.summary      = "A short description of GNGcdTimer SDK for iOS."
   spec.description  = <<-DESC
             QZ SDK for developer

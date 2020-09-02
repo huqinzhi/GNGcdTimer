@@ -8,6 +8,7 @@
 
 #import "GNGcdTimer.h"
 #import "GNThreadSafeAccessor.h"
+#import <UIKit/UIKit.h>
 
 static NSString *const kGNGcdTimerIntervalFileName = @"gnInterval.gcdTimer.hqz.com";
 static NSString *const kGNGcdTimerForeverFileName = @"gnForever.gcdTimer.hqz.com";
@@ -187,11 +188,15 @@ static id _instance;
 
 - (void)launchTimerWithKey:(NSString *)key interval:(double) interval forever:(BOOL)forever{
     dispatch_source_t timer = [self createCountDownTimerWithKey:key interval:interval forever:forever];
-    [self.timerAccessor writeWithGCD:^{
-        self.timers[key] = timer;
-    }];
+    if (![self.timerAccessor readWithGCD:^id _Nonnull{
+        return self.timers[key];
+    }]) {
+        [self.timerAccessor writeWithGCD:^{
+            self.timers[key] = timer;
+        }];
+    }
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        dispatch_resume(self.timers[key]);
+        dispatch_resume(timer);
     });
 }
 
@@ -271,7 +276,10 @@ static id _instance;
         [self.keyForever writeToFile:[GNGcdTimer GcdTimerForeverInfo] atomically:YES];
 
     }];
-    [[NSUserDefaults standardUserDefaults]removeObjectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]];
+    if ([[NSUserDefaults standardUserDefaults]objectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]] != nil) {
+        NSLog(@"%@",[[NSUserDefaults standardUserDefaults]objectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]]);
+        [[NSUserDefaults standardUserDefaults]removeObjectForKey:[NSString stringWithFormat:@"%@%@",key,kGNGcdTimerLastDate]];
+    }
 }
 
 - (BOOL)isFinishedTimerWithKey:(NSString *)key {
